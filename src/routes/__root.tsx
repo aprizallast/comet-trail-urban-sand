@@ -4,6 +4,8 @@ import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Agent BREW";
+const APP_DESC =
+  "Live launchpad radar for brew.family tokens on BNB Chain — tape, dev clusters, and a tactical copilot.";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -13,9 +15,10 @@ export const Route = createRootRoute({
       { title: APP_NAME },
       {
         name: "description",
-        content:
-          "Live launchpad radar for brew.family tokens on BNB Chain — tape, dev clusters, and a tactical copilot.",
+        content: APP_DESC,
       },
+      { property: "og:title", content: APP_NAME },
+      { property: "og:description", content: APP_DESC },
       { name: "theme-color", content: "#0c0806" },
     ],
     links: [

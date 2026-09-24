@@ -13,6 +13,7 @@ import { playAlertChime } from './utils/format.ts';
 import { fetchTokensWithFallback, inspectContractDirect, getInitialCachedPayload } from './utils/directDataLoader.ts';
 import { CyberBackground } from './components/CyberBackground.tsx';
 import { LiveCyberMarquee } from './components/LiveCyberMarquee.tsx';
+import { TokenSnifferModal } from './components/TokenSnifferModal.tsx';
 import { Radar, Bot, Award, Users, Rocket, X, ExternalLink } from 'lucide-react';
 
 const FACTORY_ADDRESS = '0xeea6c3bfb29fd9a35380438956bae7b109c63d85';
@@ -33,6 +34,8 @@ export default function App() {
   const [lang, setLang] = useState<Language>('en');
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isTokenSnifferOpen, setIsTokenSnifferOpen] = useState(false);
+  const [snifferTargetToken, setSnifferTargetToken] = useState<Token | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -288,6 +291,11 @@ export default function App() {
     showToast(`Opening DexScreener to trade ${token.symbol}...`);
   };
 
+  const handleOpenTokenSniffer = (token?: Token) => {
+    setSnifferTargetToken(token || selectedToken || tokens[0] || null);
+    setIsTokenSnifferOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-ink)] relative overflow-x-hidden">
       <CyberBackground />
@@ -336,6 +344,7 @@ export default function App() {
             onSync={() => loadData(true)}
             onShowToast={showToast}
             visitorStats={visitorStats}
+            onOpenTokenSniffer={() => handleOpenTokenSniffer()}
           />
 
           <nav className="mb-6 flex gap-1 overflow-x-auto rounded-full border border-[var(--color-line)] bg-[var(--color-surface)] p-1">
@@ -389,6 +398,7 @@ export default function App() {
             onVisibleTokens={handleVisibleTokens}
             initialSearch={radarFilterDev}
             onClearSearch={() => setRadarFilterDev('')}
+            onOpenTokenSniffer={handleOpenTokenSniffer}
           />
         )}
 
@@ -427,16 +437,33 @@ export default function App() {
         )}
 
         <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-line)] pt-4 text-[12px] text-[var(--color-muted)]">
-          <p>Feeds from brew.family and DexScreener. Security checks via GoPlus.</p>
-          <a
-            href="https://brew.family"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[var(--color-ink)]"
-          >
-            brew.family
-            <ExternalLink className="h-3 w-3" />
-          </a>
+          <p>Feeds from brew.family and DexScreener. Pair scam checks via TokenSniffer &amp; GoPlus.</p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleOpenTokenSniffer()}
+              className="text-[var(--color-ink)] hover:text-emerald-400 font-mono text-xs inline-flex items-center gap-1 cursor-pointer"
+            >
+              <span>TokenSniffer Checker</span>
+            </button>
+            <a
+              href="https://tokensniffer.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[var(--color-ink)] hover:text-emerald-400"
+            >
+              tokensniffer.com
+              <ExternalLink className="h-3 w-3" />
+            </a>
+            <a
+              href="https://brew.family"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[var(--color-ink)]"
+            >
+              brew.family
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
         </footer>
       </div>
 
@@ -450,6 +477,15 @@ export default function App() {
         onSelectAnotherToken={other => {
           setSelectedToken(other);
         }}
+        allTokens={tokens}
+        onShowToast={showToast}
+      />
+
+      {/* TokenSniffer Scam & Pair Check Modal */}
+      <TokenSnifferModal
+        isOpen={isTokenSnifferOpen}
+        onClose={() => setIsTokenSnifferOpen(false)}
+        initialToken={snifferTargetToken}
         allTokens={tokens}
         onShowToast={showToast}
       />

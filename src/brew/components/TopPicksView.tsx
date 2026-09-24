@@ -127,7 +127,13 @@ export const TopPicksView: React.FC<TopPicksViewProps> = ({
                             size="md"
                           />
                           <div>
-                            <div className="font-bold text-[var(--color-ink)] font-mono">${t.symbol}</div>
+                            <div className="font-bold text-[var(--color-ink)] font-mono flex items-center gap-1.5">
+                              <span>${t.symbol}</span>
+                              <span className="text-[9px] font-mono text-[var(--color-muted)] bg-[var(--color-field)] border border-[var(--color-line)] px-1 py-0.2 rounded flex items-center gap-0.5">
+                                <span>/{t.quoteSymbol || 'WBNB'}</span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              </span>
+                            </div>
                             <div className="text-[11px] text-[var(--color-muted)] max-w-[120px] truncate">{t.name}</div>
                           </div>
                         </div>

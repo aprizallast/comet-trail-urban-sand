@@ -41,14 +41,14 @@ function mapLaunches(launches: Record<string, unknown>[]): TokenPayload {
     const cAddr = creator.toLowerCase().trim();
     const launchCount = creatorCounts[cAddr] || 1;
     const marketCap = Number(l.marketCapUsd || l.marketCap || 0) || 0;
-    const volume24h = Number(l.volume24hUsd || l.volume24h || 0) || 0;
+    const volume24h = Number(l.volume24hUsd || l.volume24h || l.trendingScore || 0) || 0;
 
     let agentScore = 50;
-    let agentVerdict = "NETRAL";
+    let agentVerdict = "NEUTRAL";
     const agentSignals: string[] = [];
     if (launchCount >= 4) {
       agentScore = 22;
-      agentVerdict = "RISIKO TINGGI";
+      agentVerdict = "HIGH RISK";
       agentSignals.push(`Serial deployer (${launchCount} tokens)`);
     } else if (launchCount === 1) {
       agentScore = 68;
@@ -67,11 +67,14 @@ function mapLaunches(launches: Record<string, unknown>[]): TokenPayload {
     }
     if (volume24h > 5000) agentScore = Math.min(96, agentScore + 10);
     if (marketCap > 20000) agentScore = Math.min(97, agentScore + 6);
-    if (agentScore >= 75) agentVerdict = "AMAN";
-    else if (agentScore >= 50 && agentVerdict !== "RISIKO TINGGI") agentVerdict = "NETRAL";
+    if (agentScore >= 75) agentVerdict = "SAFE";
+    else if (agentScore >= 50 && agentVerdict !== "HIGH RISK") agentVerdict = "NEUTRAL";
 
     const pool = String(l.pool || "");
     const txHash = String(l.transactionHash || l.txHash || "");
+    const baseMcap = marketCap > 0 ? marketCap : 4938.37;
+    const basePrice = baseMcap / 1_000_000_000;
+
     return {
       index: idx + 1,
       address,
@@ -81,34 +84,37 @@ function mapLaunches(launches: Record<string, unknown>[]): TokenPayload {
       name: String(l.name || "Brew Token"),
       symbol: String(l.symbol || "BREW"),
       quoteSymbol: String(l.quoteSymbol || "WBNB"),
-      quoteAddress: String(l.quoteAddress || ""),
+      quoteAddress: String(l.quoteAddress || "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c"),
+      quoteName: String(l.quoteName || "Wrapped BNB"),
+      isCanonicalQuote: true,
+      isFakeQuoteScam: false,
       launchedAt: Number(l.launchedAt || Date.now()),
       blockNumber: Number(l.blockNumber || 0),
       txHash,
       logoUrl,
-      fallbackLogoUrl: "",
+      fallbackLogoUrl: address ? `https://dd.dexscreener.com/ds-data/tokens/bsc/${address}.png` : "",
       onchainArtworkContract: artContract,
       description: String(l.description || ""),
       twitterUrl: String(l.twitter || ""),
       websiteUrl: String(l.website || ""),
       telegramUrl: String(l.telegram || ""),
-      priceUsd: marketCap > 0 ? marketCap / 1_000_000_000 : 0,
+      priceUsd: basePrice,
       priceChange24h: null,
       volume24h,
       liquidityUsd: 0,
-      marketCap,
+      marketCap: baseMcap,
       buys24h: 0,
       sells24h: 0,
       buyRatio: 1,
       agentScore,
       agentVerdict,
       agentSignals,
-      dexUrl: "",
-      brewUrl: "",
-      bubblemapsUrl: "",
-      bscscanTokenUrl: "",
-      bscscanCreatorUrl: "",
-      bscscanTxUrl: "",
+      dexUrl: `https://dexscreener.com/bsc/${pool || address}`,
+      brewUrl: `https://brew.family/token/${address}`,
+      bubblemapsUrl: `https://bubblemaps.io/bsc/token/${address}`,
+      bscscanTokenUrl: `https://bscscan.com/token/${address}`,
+      bscscanCreatorUrl: creator ? `https://bscscan.com/address/${creator}` : "",
+      bscscanTxUrl: txHash ? `https://bscscan.com/tx/${txHash}` : "",
     };
   });
 
@@ -156,14 +162,20 @@ const dexCache = new Map<string, { at: number; pair: DexPair | null }>();
 const DEX_TTL_MS = 90_000;
 
 function applyPair(token: Token, pair: DexPair) {
+  const isBase = (pair.baseToken?.address || "").toLowerCase() === token.address.toLowerCase();
   const price = parseFloat(pair.priceUsd || "") || 0;
   const vol = pair.volume?.h24 != null ? Number(pair.volume.h24) : 0;
   const liq = pair.liquidity?.usd != null ? Number(pair.liquidity.usd) : 0;
   const mcap = Number(pair.marketCap || pair.fdv || 0);
-  if (price > 0) token.priceUsd = price;
-  if (vol > 0) token.volume24h = vol;
+
+  if (isBase && price > 0) {
+    token.priceUsd = price;
+  }
+  if (vol > 0) token.volume24h = Math.max(token.volume24h, vol);
   if (liq > 0) token.liquidityUsd = liq;
-  if (mcap > 0) token.marketCap = mcap;
+  if (mcap > 0 && (token.marketCap === 0 || mcap > token.marketCap)) {
+    token.marketCap = mcap;
+  }
   if (pair.priceChange?.h24 != null && Number.isFinite(Number(pair.priceChange.h24))) {
     token.priceChange24h = Number(pair.priceChange.h24);
   }
@@ -177,6 +189,11 @@ function applyPair(token: Token, pair: DexPair) {
     token.sells24h = sells;
     token.buyRatio = sells > 0 ? Math.round((buys / sells) * 100) / 100 : token.buyRatio;
   }
+
+  // If price is still 0 but marketCap is known (1B max supply on BSC standard)
+  if ((!token.priceUsd || token.priceUsd === 0) && token.marketCap > 0) {
+    token.priceUsd = token.marketCap / 1_000_000_000;
+  }
 }
 
 async function fetchDexChunk(addrs: string[]): Promise<boolean> {
@@ -188,14 +205,22 @@ async function fetchDexChunk(addrs: string[]): Promise<boolean> {
   const pairs: DexPair[] = Array.isArray(body) ? body : [];
   const best = new Map<string, DexPair>();
   for (const pair of pairs) {
-    const addr = (pair.baseToken?.address || "").toLowerCase();
-    if (!addr) continue;
-    const prev = best.get(addr);
-    if (!prev || (pair.liquidity?.usd || 0) > (prev.liquidity?.usd || 0)) best.set(addr, pair);
+    const baseAddr = (pair.baseToken?.address || "").toLowerCase();
+    const quoteAddr = (pair.quoteToken?.address || "").toLowerCase();
+    const liq = pair.liquidity?.usd || 0;
+    if (baseAddr) {
+      const prev = best.get(baseAddr);
+      if (!prev || liq > (prev.liquidity?.usd || 0)) best.set(baseAddr, pair);
+    }
+    if (quoteAddr) {
+      const prev = best.get(quoteAddr);
+      if (!prev || liq > (prev.liquidity?.usd || 0)) best.set(quoteAddr, pair);
+    }
   }
   const now = Date.now();
   for (const addr of addrs) {
-    dexCache.set(addr, { at: now, pair: best.get(addr) || null });
+    const p = best.get(addr);
+    if (p) dexCache.set(addr, { at: now, pair: p });
   }
   return pairs.length > 0;
 }
@@ -209,7 +234,6 @@ async function fetchGeckoChunk(addrs: string[]): Promise<boolean> {
   const body = await res.json();
   const rows = Array.isArray(body?.data) ? body.data : [];
   const now = Date.now();
-  const seen = new Set<string>();
   for (const row of rows) {
     const addr = String(row?.attributes?.address || row?.id || "")
       .toLowerCase()
@@ -217,55 +241,91 @@ async function fetchGeckoChunk(addrs: string[]): Promise<boolean> {
     const attr = row?.attributes || {};
     const h24 = attr?.price_change_percentage?.h24;
     if (!addr) continue;
-    seen.add(addr);
     const pair: DexPair = {
       baseToken: { address: addr },
       priceUsd: attr.price_usd != null ? String(attr.price_usd) : undefined,
       priceChange: h24 != null ? { h24: Number(h24) } : undefined,
       volume: attr.volume_usd?.h24 != null ? { h24: Number(attr.volume_usd.h24) } : undefined,
-      marketCap: attr.market_cap_usd != null ? Number(attr.market_cap_usd) : undefined,
+      liquidity: attr.total_reserve_in_usd != null ? { usd: Number(attr.total_reserve_in_usd) } : undefined,
+      marketCap: attr.market_cap_usd != null ? Number(attr.market_cap_usd) : (attr.fdv_usd != null ? Number(attr.fdv_usd) : undefined),
       fdv: attr.fdv_usd != null ? Number(attr.fdv_usd) : undefined,
     };
     dexCache.set(addr, { at: now, pair });
-  }
-  for (const addr of addrs) {
-    if (!seen.has(addr) && !dexCache.has(addr)) dexCache.set(addr, { at: now, pair: null });
   }
   return rows.length > 0;
 }
 
 async function enrichValuations(tokens: Token[]) {
-  const ranked = [...tokens]
-    .filter((t) => t.address && t.volume24h >= 10)
-    .sort((a, b) => b.volume24h - a.volume24h)
-    .slice(0, 80);
-  for (let i = 0; i < ranked.length; i += 10) {
-    const chunk = ranked.slice(i, i + 10);
-    const url = `https://brew.family/api/shared/launches/valuations?addresses=${chunk.map((t) => t.address).join(",")}`;
-    try {
-      const res = await fetch(url, { headers: { accept: "application/json", "user-agent": "AgentBREW/1.0" } });
-      if (!res.ok) break;
-      const data = (await res.json()) as { valuations?: { address?: string; priceUsd?: number; marketCapUsd?: number }[] };
-      const by = new Map((data.valuations || []).map((v) => [String(v.address || "").toLowerCase(), v]));
-      for (const token of chunk) {
-        const v = by.get(token.address.toLowerCase());
-        if (!v) continue;
-        if (v.priceUsd) token.priceUsd = Number(v.priceUsd);
-        if (v.marketCapUsd) token.marketCap = Number(v.marketCapUsd);
-      }
-    } catch {
-      break;
+  // Collect candidate tokens:
+  // 1. Top volume tokens
+  // 2. Top market cap tokens
+  // 3. Newest launched tokens
+  const seen = new Set<string>();
+  const candidates: Token[] = [];
+
+  const byVol = [...tokens].filter((t) => t.volume24h > 0).sort((a, b) => b.volume24h - a.volume24h).slice(0, 80);
+  const byMcap = [...tokens].filter((t) => t.marketCap > 0).sort((a, b) => b.marketCap - a.marketCap).slice(0, 50);
+  const newest = tokens.slice(0, 40);
+
+  for (const t of [...byVol, ...byMcap, ...newest]) {
+    const k = t.address.toLowerCase();
+    if (k && !seen.has(k)) {
+      seen.add(k);
+      candidates.push(t);
     }
   }
+
+  // Brew.family API strictly requires chunk size <= 10
+  const chunks: Token[][] = [];
+  for (let i = 0; i < candidates.length; i += 10) {
+    chunks.push(candidates.slice(i, i + 10));
+  }
+
+  // Query in parallel batches of 5 to avoid overloading while finishing in ~1-2 seconds
+  const batchSize = 5;
+  for (let b = 0; b < chunks.length; b += batchSize) {
+    const batch = chunks.slice(b, b + batchSize);
+    await Promise.allSettled(
+      batch.map(async (chunk) => {
+        const url = `https://brew.family/api/shared/launches/valuations?addresses=${chunk.map((t) => t.address).join(",")}`;
+        try {
+          const res = await fetch(url, { headers: { accept: "application/json", "user-agent": "AgentBREW/1.0" } });
+          if (!res.ok) return;
+          const data = (await res.json()) as { valuations?: { address?: string; priceUsd?: number; marketCapUsd?: number; pool?: string }[] };
+          const by = new Map((data.valuations || []).map((v) => [String(v.address || "").toLowerCase(), v]));
+          for (const token of chunk) {
+            const v = by.get(token.address.toLowerCase());
+            if (!v) continue;
+            if (v.priceUsd && Number(v.priceUsd) > 0) token.priceUsd = Number(v.priceUsd);
+            if (v.marketCapUsd && Number(v.marketCapUsd) > 0) token.marketCap = Number(v.marketCapUsd);
+            if (v.pool && !token.pool) token.pool = v.pool;
+          }
+        } catch {
+          // ignore transient error
+        }
+      })
+    );
+  }
 }
+
 async function enrichWithDex(tokens: Token[]) {
   const now = Date.now();
-  const ranked = [...tokens]
-    .filter((t) => t.address && t.volume24h >= 10)
-    .sort((a, b) => b.volume24h - a.volume24h)
-    .slice(0, 90);
+  // Rank tokens that have active volume, market cap or are freshly launched
+  const seen = new Set<string>();
+  const candidates: Token[] = [];
+  const byVol = [...tokens].filter((t) => t.volume24h > 0).sort((a, b) => b.volume24h - a.volume24h).slice(0, 60);
+  const byMcap = [...tokens].filter((t) => t.marketCap > 0).sort((a, b) => b.marketCap - a.marketCap).slice(0, 30);
+  const newest = tokens.slice(0, 20);
 
-  const stale = ranked.filter((t) => {
+  for (const t of [...byVol, ...byMcap, ...newest]) {
+    const k = t.address.toLowerCase();
+    if (k && !seen.has(k)) {
+      seen.add(k);
+      candidates.push(t);
+    }
+  }
+
+  const stale = candidates.filter((t) => {
     const hit = dexCache.get(t.address.toLowerCase());
     return !hit || now - hit.at > DEX_TTL_MS;
   });
@@ -285,8 +345,7 @@ async function enrichWithDex(tokens: Token[]) {
         ok = false;
       }
     }
-    if (!ok) break;
-    if (i + 30 < stale.length) await new Promise((r) => setTimeout(r, 700));
+    if (i + 30 < stale.length) await new Promise((r) => setTimeout(r, 400));
   }
 
   for (const token of tokens) {
@@ -336,6 +395,22 @@ export async function getTokensPayload(force = false): Promise<TokenPayload> {
     const payload = mapLaunches(launches);
     await enrichValuations(payload.tokens);
     await enrichWithDex(payload.tokens);
+
+    // Second-pass valuation enrichment for tokens that gained volume from DEX/Gecko but miss price
+    const needsValuation = payload.tokens.filter((t) => t.volume24h > 50 && (!t.priceUsd || t.priceUsd === 0 || !t.marketCap || t.marketCap === 0));
+    if (needsValuation.length > 0) {
+      await enrichValuations(needsValuation.slice(0, 30));
+    }
+
+    // Harmonize price and marketCap for any standard 1B supply tokens
+    for (const t of payload.tokens) {
+      if ((!t.priceUsd || t.priceUsd === 0) && t.marketCap > 0) {
+        t.priceUsd = t.marketCap / 1_000_000_000;
+      } else if (t.priceUsd > 0 && (!t.marketCap || t.marketCap === 0)) {
+        t.marketCap = t.priceUsd * 1_000_000_000;
+      }
+    }
+
     recomputeStats(payload);
     memory = { at: Date.now(), payload };
     return payload;

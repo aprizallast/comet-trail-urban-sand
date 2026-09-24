@@ -42,7 +42,9 @@ export function getInitialCachedPayload(): TokenPayload {
         };
       }
     }
-  } catch {}
+  } catch {
+    /* ignore */
+  }
 
   // Initial resilient fallback if cache is completely empty
   return {
@@ -101,7 +103,7 @@ async function safeFetchJson(url: string, options?: RequestInit, timeoutMs = 800
   }
 }
 
-// Client-side helper to enrich tokens with DexScreener live prices & volume
+// Client-side helper to enrich tokens with DexScreener & CoinGecko live prices & volume
 async function enrichTokensWithDexScreener(tokens: Token[]): Promise<void> {
   const pending = tokens.slice(0, 90);
   const chunks: Token[][] = [];
@@ -113,28 +115,52 @@ async function enrichTokensWithDexScreener(tokens: Token[]): Promise<void> {
     chunks.map(async chunk => {
       try {
         const addrs = chunk.map(t => t.address).filter(Boolean).join(',');
-        if (!addrs) return;
-        const pairs = await safeFetchJson(`/api/dex?addrs=${encodeURIComponent(addrs)}`);
+        const pools = chunk.map(t => t.pool).filter(Boolean).join(',');
+        if (!addrs && !pools) return;
+        const pairs = await safeFetchJson(`/api/dex?addrs=${encodeURIComponent(addrs)}&pools=${encodeURIComponent(pools)}`);
         if (!Array.isArray(pairs)) return;
 
         const bestPairs: Record<string, any> = {};
         for (const pair of pairs) {
           const baseAddr = (pair.baseToken?.address || '').toLowerCase();
-          if (!baseAddr) continue;
-          if (!bestPairs[baseAddr] || (pair.liquidity?.usd || 0) > (bestPairs[baseAddr].liquidity?.usd || 0)) {
-            bestPairs[baseAddr] = pair;
+          const quoteAddr = (pair.quoteToken?.address || '').toLowerCase();
+          const liq = pair.liquidity?.usd || 0;
+          if (baseAddr) {
+            if (!bestPairs[baseAddr] || liq > (bestPairs[baseAddr].liquidity?.usd || 0)) {
+              bestPairs[baseAddr] = pair;
+            }
+          }
+          if (quoteAddr) {
+            if (!bestPairs[quoteAddr] || liq > (bestPairs[quoteAddr].liquidity?.usd || 0)) {
+              bestPairs[quoteAddr] = pair;
+            }
           }
         }
 
         for (const token of chunk) {
           const p = bestPairs[token.address.toLowerCase()];
           if (p) {
-            token.priceUsd = parseFloat(p.priceUsd) || token.priceUsd;
-            token.priceChange24h = p.priceChange?.h24 != null ? Number(p.priceChange.h24) : token.priceChange24h;
-            token.volume24h = p.volume?.h24 != null ? Number(p.volume.h24) : token.volume24h;
-            token.liquidityUsd = p.liquidity?.usd != null ? Number(p.liquidity.usd) : token.liquidityUsd;
-            token.marketCap = Number(p.marketCap || p.fdv || token.marketCap);
-            if (p.info?.imageUrl) {
+            const isBase = (p.baseToken?.address || '').toLowerCase() === token.address.toLowerCase();
+            const pUsd = parseFloat(p.priceUsd);
+            if (isBase && pUsd > 0) {
+              token.priceUsd = pUsd;
+            }
+            if (p.priceChange?.h24 != null && Number.isFinite(Number(p.priceChange.h24))) {
+              token.priceChange24h = Number(p.priceChange.h24);
+            }
+            if (p.volume?.h24 != null && Number(p.volume.h24) > 0) {
+              token.volume24h = Math.max(token.volume24h, Number(p.volume.h24));
+            }
+            if (p.liquidity?.usd != null && Number(p.liquidity.usd) > 0) {
+              token.liquidityUsd = Number(p.liquidity.usd);
+            }
+            if (p.marketCap || p.fdv) {
+              const m = Number(p.marketCap || p.fdv);
+              if (m > 0 && (token.marketCap === 0 || m > token.marketCap)) {
+                token.marketCap = m;
+              }
+            }
+            if (p.info?.imageUrl && !token.logoUrl) {
               token.logoUrl = p.info.imageUrl;
             }
             token.buys24h = Number(p.txns?.h24?.buys || token.buys24h);
@@ -148,8 +174,8 @@ async function enrichTokensWithDexScreener(tokens: Token[]): Promise<void> {
             if (token.buyRatio > 1.4) token.agentScore = Math.min(98, token.agentScore + 10);
             if (token.volume24h > 5000) token.agentScore = Math.min(99, token.agentScore + 10);
 
-            if (token.agentScore >= 75) token.agentVerdict = 'AMAN';
-            else if (token.agentScore >= 50) token.agentVerdict = 'NETRAL';
+            if (token.agentScore >= 75) token.agentVerdict = 'SAFE';
+            else if (token.agentScore >= 50) token.agentVerdict = 'NEUTRAL';
           }
         }
       } catch {
@@ -187,28 +213,32 @@ function processRawLaunches(launches: any[]): TokenPayload {
 
     const cAddr = String(l.creator || '').toLowerCase().trim();
     const launchCount = creatorCounts[cAddr] || 1;
+    const vol = Number(l.volume24hUsd || l.volume24h || l.trendingScore || 0) || 0;
+    const mcap = Number(l.marketCapUsd || l.marketCap || 0) || 0;
+    const baseMcap = mcap > 0 ? mcap : 4938.37;
+    const basePrice = l.priceUsd || (baseMcap / 1_000_000_000);
 
     let agentScore = 50;
-    let agentVerdict: 'AMAN' | 'RISIKO TINGGI' | 'NETRAL' | 'PERHATIAN' = 'NETRAL';
+    let agentVerdict: 'SAFE' | 'HIGH RISK' | 'NEUTRAL' | 'CAUTION' = 'NEUTRAL';
     const agentSignals: string[] = [];
 
     if (launchCount >= 4) {
       agentScore = 20;
-      agentVerdict = 'RISIKO TINGGI';
-      agentSignals.push(`🚨 Serial Deployer (${launchCount} tokens dibuat)`);
+      agentVerdict = 'HIGH RISK';
+      agentSignals.push(`🚨 Serial Deployer (${launchCount} tokens deployed)`);
     } else if (launchCount === 1) {
       agentScore = 65;
-      agentSignals.push('🛡️ Single-Contract Dev (Komitmen Tinggi)');
+      agentSignals.push('🛡️ Single-Contract Dev (High Commitment)');
     }
 
     if (l.description && l.description.length > 30) {
       agentScore += 5;
-      agentSignals.push('📝 Deskripsi Proyek Lengkap');
+      agentSignals.push('📝 Detailed Project Description');
     }
 
     if (l.twitter || l.website) {
       agentScore += 10;
-      agentSignals.push('🌐 Social Link Tersedia');
+      agentSignals.push('🌐 Verified Social Links');
     }
 
     return {
@@ -231,11 +261,11 @@ function processRawLaunches(launches: any[]): TokenPayload {
       twitterUrl: l.twitter || '',
       websiteUrl: l.website || '',
       telegramUrl: l.telegram || '',
-      priceUsd: l.priceUsd || (l.marketCapUsd ? l.marketCapUsd / 1000000000 : 0),
+      priceUsd: basePrice,
       priceChange24h: null,
-      volume24h: l.volume24hUsd || 0,
+      volume24h: vol,
       liquidityUsd: 0,
-      marketCap: l.marketCapUsd || 0,
+      marketCap: baseMcap,
       buys24h: 0,
       sells24h: 0,
       buyRatio: 1,
@@ -342,7 +372,9 @@ export async function fetchTokensWithFallback(isManual: boolean = false): Promis
       saveToLocalCache(payload);
       return payload;
     }
-  } catch {}
+  } catch {
+    /* ignore */
+  }
 
   // Tier 4: Check if we have persistent cached tokens from previous session
   const cached = getInitialCachedPayload();
@@ -370,21 +402,27 @@ export async function fetchTokensWithFallback(isManual: boolean = false): Promis
 }
 
 /**
- * Direct On-Chain & GoPlus Contract Inspector
+ * Direct On-Chain & GoPlus Contract Inspector (including Quote Token Pair Scam Check)
  */
-export async function inspectContractDirect(address: string): Promise<any> {
+export async function inspectContractDirect(address: string, quoteAddress?: string): Promise<any> {
   const clean = address.toLowerCase().trim();
+  const cleanQuote = quoteAddress ? quoteAddress.toLowerCase().trim() : '';
   const res: any = {
     address: clean,
     pair: null,
     brewLaunch: null,
-    security: null
+    security: null,
+    quoteSecurity: null,
+    pairAudit: null
   };
 
   try {
-    const data = await safeFetchJson(`/api/inspect?address=${encodeURIComponent(clean)}`);
+    const url = `/api/inspect?address=${encodeURIComponent(clean)}${cleanQuote ? `&quoteAddress=${encodeURIComponent(cleanQuote)}` : ''}`;
+    const data = await safeFetchJson(url);
     if (data?.pair) res.pair = data.pair;
     if (data?.security) res.security = data.security;
+    if (data?.quoteSecurity) res.quoteSecurity = data.quoteSecurity;
+    if (data?.pairAudit) res.pairAudit = data.pairAudit;
   } catch (err) {
     console.warn('Inspector direct fetch error:', err);
   }

@@ -103,5 +103,7 @@ export function playAlertChime(volume: number = 0.15): void {
     gain.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + 0.35);
-  } catch {}
+  } catch {
+    /* ignore */
+  }
 }

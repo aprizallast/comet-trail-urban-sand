@@ -41,6 +41,7 @@ export interface TranslationDict {
   modalTitle: string;
   sec1Title: string;
   sec2Title: string;
+  secPairTitle: string;
   sec3Title: string;
   sec4Title: string;
   sec5Title: string;
@@ -59,6 +60,7 @@ export interface TranslationDict {
   copilotChip3: string;
   copilotChip4: string;
   copilotChip5: string;
+  copilotChipPairScam: string;
   copilotInputPh: string;
   copilotSend: string;
   copilotTopPicksTitle: string;
@@ -67,6 +69,7 @@ export interface TranslationDict {
   copilotRuleLiq: string;
   copilotRuleOrder: string;
   copilotRuleSec: string;
+  copilotRulePair: string;
   picksDesc: string;
   devClusterTitle: string;
   extremeSerial: string;
@@ -97,6 +100,15 @@ export interface TranslationDict {
   syncing: string;
   syncBtn: string;
   copyBtn: string;
+  // Pair Scam Audit Specific
+  pairAuditTitle: string;
+  pairAuditDesc: string;
+  quoteAddressLabel: string;
+  canonicalVerified: string;
+  fakeQuoteWarning: string;
+  customQuoteWarning: string;
+  quoteTaxLabel: string;
+  quoteHoneypotLabel: string;
 }
 
 export const I18N: Record<Language, TranslationDict> = {
@@ -129,8 +141,8 @@ export const I18N: Record<Language, TranslationDict> = {
     thMarketCap: 'Market Cap',
     thVol: '24h Volume',
     thVolume24h: '24h Volume',
-    thLiq: 'Liquidity',
-    thLiquidity: 'Liquidity',
+    thLiq: 'With DEX / Liq',
+    thLiquidity: 'With DEX / Liquidity',
     thDev: 'Dev Cluster',
     thScore: 'Agent Score',
     thActions: 'Actions',
@@ -141,6 +153,7 @@ export const I18N: Record<Language, TranslationDict> = {
     modalTitle: 'Token Analysis & Dev Intel',
     sec1Title: '📊 MARKET METRICS & ORDER FLOW',
     sec2Title: '🤖 TACTICAL VERDICT & SECURITY AUDIT',
+    secPairTitle: '🛡️ PAIR TOKEN & QUOTE SCAM AUDIT',
     sec3Title: '🕵️ DEVELOPER & TOP HOLDERS INTEL',
     sec4Title: '💰 PROFIT SIMULATOR (DYNAMIC ROI)',
     sec5Title: '📑 CONTRACT IDENTITY & VERIFICATION',
@@ -153,13 +166,14 @@ export const I18N: Record<Language, TranslationDict> = {
     topVol: '⚡ Top Volume',
     highestScore: '🤖 Highest Score',
     serialDevRisk: '🚨 Serial Dev Risk',
-    copilotGreeting: 'Hello! I am Agent BREW Tactical Terminal.\nOperating 100% deterministic intelligence analyzing 2,160+ token launches on brew.family (BNB Chain).\n\nSelect a tactical quick prompt below or type any token symbol (e.g. "BREW") or contract address (0x...) for instant audit!',
+    copilotGreeting: 'Hello! I am Agent BREW Tactical Terminal.\nOperating deterministic intelligence analyzing 2,160+ token launches on brew.family (BNB Chain).\n\nSelect a tactical quick prompt below or type any token symbol (e.g. "BREW") or contract address (0x...) for instant audit, including Paired Quote Token (WBNB/USDT) scam verification!',
     copilotChip1: 'Top 3 High Conviction Picks',
     copilotChip2: 'Riskiest Serial Devs (>3 Tokens)',
     copilotChip3: 'Single-Dev Liquid Gems',
     copilotChip4: 'Top Volume Active Now',
     copilotChip5: '5 Freshest Launches',
-    copilotInputPh: "Ask Agent BREW (e.g. 'top picks', 'safe dev gems', 'dump risk', 'BREW')...",
+    copilotChipPairScam: '🛡️ Pair Token & WBNB Scam Check',
+    copilotInputPh: "Ask Agent BREW (e.g. 'top picks', 'safe dev gems', 'pair scam check', 'BREW')...",
     copilotSend: 'Send',
     copilotTopPicksTitle: '💎 HIGH CONVICTION PICKS',
     copilotRulesTitle: '⚙️ AGENT RULES ENGINE',
@@ -167,7 +181,8 @@ export const I18N: Record<Language, TranslationDict> = {
     copilotRuleLiq: 'Liquidity Threshold: Liquidity >$1,000 WBNB receives high stability weighting.',
     copilotRuleOrder: 'Order Flow Radar: Real-time buyer accumulation vs seller pressure ratio.',
     copilotRuleSec: 'Security Scanner: Instant honeypot & buy/sell tax checks via GoPlus BSC Security.',
-    picksDesc: 'Curated high-conviction token radar filtered by Agent BREW algorithms based on active DEX liquidity depth, buyer accumulation pressure, clean single-developer history, and sustained 24h trading volume on BNB Chain.',
+    copilotRulePair: 'Pair Scam Auditor: Automatic verification of Paired Quote Tokens (WBNB, USDT, USDC) against canonical BSC contracts to prevent fake-token liquidity traps.',
+    picksDesc: 'Curated high-conviction token radar filtered by Agent BREW algorithms based on active DEX liquidity depth, buyer accumulation pressure, clean single-developer history, verified quote token contracts, and sustained 24h trading volume on BNB Chain.',
     devClusterTitle: 'Developer Wallet Clustering',
     extremeSerial: '🚨 Extreme Serial (≥5)',
     repeatDev: '⚠️ Repeat (3-4 launches)',
@@ -194,7 +209,122 @@ export const I18N: Record<Language, TranslationDict> = {
     syncSuccess: 'Database synced successfully!',
     syncing: 'Syncing...',
     syncBtn: 'Sync Database',
-    copyBtn: 'Copy Factory'
+    copyBtn: 'Copy Factory',
+    pairAuditTitle: 'Pair Token & Quote Security Audit',
+    pairAuditDesc: 'Verifies the paired quote contract (WBNB/USDT/USDC) against canonical BSC addresses to detect fake quote token scams.',
+    quoteAddressLabel: 'Quote Contract (WBNB/Paired)',
+    canonicalVerified: '✓ Canonical Verified BSC Contract',
+    fakeQuoteWarning: '🚨 FAKE QUOTE TOKEN SCAM DETECTED!',
+    customQuoteWarning: '⚠️ Custom Unverified Quote Contract',
+    quoteTaxLabel: 'Quote Token Tax',
+    quoteHoneypotLabel: 'Quote Honeypot Status'
+  },
+  id: {
+    dbStatus: '⚡ Terhubung ke Supabase',
+    totalLaunches: 'Total Token Launchpad',
+    trackedVol: 'Volume 24 Jam Terpantau',
+    ecosystemFdv: 'FDV Ekosistem',
+    multiDevs: 'Dev Multi-Token',
+    activeDexSub: 'dengan likuiditas DEX',
+    volSub: 'PancakeSwap & DEX BSC',
+    mcapSub: 'Agregat valuasi token',
+    multiDevsSub: 'Dompet meluncurkan >1 token (risiko dump)',
+    tabRadar: '📊 Radar Token & DEX Live',
+    tabCopilot: '🤖 Terminal Copilot',
+    tabPicks: '🏆 Hall of Fame & Pilihan Teratas',
+    tabDevs: '🕵️ Peta Kluster Dev',
+    quickFilters: '⚡ Filter Cepat:',
+    singleDev: '🛡️ Dev Tunggal (Fokus)',
+    alertAudioOn: '🔔 Audio Peringatan: AKTIF',
+    alertAudioOff: '🔕 Audio Peringatan: NONAKTIF',
+    trackContractBtn: '+ Pantau Kontrak',
+    trackCustomPh: 'Pantau kontrak BSC custom (masukkan 0x...)...',
+    searchPh: 'Cari token, simbol, kontrak, atau dev...',
+    thRank: 'Peringkat / Token',
+    thToken: 'Token',
+    thPrice: 'Harga (USD)',
+    thChange: 'Perubahan 24j',
+    thMcap: 'Kapitalisasi Pasar',
+    thMarketCap: 'Kapitalisasi Pasar',
+    thVol: 'Volume 24j',
+    thVolume24h: 'Volume 24j',
+    thLiq: 'Likuiditas DEX',
+    thLiquidity: 'Likuiditas DEX',
+    thDev: 'Kluster Dev',
+    thScore: 'Skor AI',
+    thActions: 'Aksi',
+    btnAnalyze: 'Audit ↗',
+    btnSwap: 'Trade ⚡',
+    prevPage: '‹ Sebelumnya',
+    nextPage: 'Berikutnya ›',
+    modalTitle: 'Analisis Mendalam Token & Intel Dev',
+    sec1Title: '📊 METRIK PASAR & ALIRAN ORDER',
+    sec2Title: '🤖 KEPUTUSAN TAKTIS & AUDIT KEAMANAN TOKEN',
+    secPairTitle: '🛡️ AUDIT KEAMANAN PAIR & TOKEN SCAM (WBNB/QUOTE)',
+    sec3Title: '🕵️ INTEL DEVELOPER & TOP 10 HOLDER',
+    sec4Title: '💰 SIMULATOR KEUNTUNGAN (ROI DINAMIS)',
+    sec5Title: '📑 IDENTITAS KONTRAK & VERIFIKASI ON-CHAIN',
+    newReleaseTitle: 'TOKEN BARU DILUNCURKAN!',
+    allTokens: '🌐 Semua Token',
+    newestReleases: '🆕 Rilis Terbaru',
+    withDexLiq: '💧 Likuiditas DEX',
+    topGainers: '🚀 Top Kenaikan',
+    topMcap: '🏆 Top Kapitalisasi Pasar',
+    topVol: '⚡ Top Volume',
+    highestScore: '🤖 Skor Tertinggi',
+    serialDevRisk: '🚨 Risiko Serial Dev',
+    copilotGreeting: 'Halo! Saya Terminal Taktis Agent BREW.\nMenjalankan analisis otomatis terhadap 2.160+ token di brew.family (BNB Chain).\n\nPilih prompt cepat di bawah atau masukkan simbol token (contoh: "BREW") atau alamat kontrak (0x...) untuk audit instan — termasuk deteksi pair scam & verifikasi alamat quote token (WBNB/USDT)!',
+    copilotChip1: '3 Pilihan Keyakinan Tinggi Teratas',
+    copilotChip2: 'Serial Dev Berisiko (>3 Token)',
+    copilotChip3: 'Permata Dev Tunggal Likuid',
+    copilotChip4: 'Volume Tertinggi Saat Ini',
+    copilotChip5: '5 Peluncuran Paling Baru',
+    copilotChipPairScam: '🛡️ Cek Pair Token Scam (WBNB)',
+    copilotInputPh: "Tanya Agent BREW (contoh: 'cek pair scam', 'pilihan aman', 'BREW')...",
+    copilotSend: 'Kirim',
+    copilotTopPicksTitle: '💎 PILIHAN KEYAKINAN TINGGI',
+    copilotRulesTitle: '⚙️ ATURAN MESIN ANALISIS',
+    copilotRuleDev: 'Penyaringan Dev: Pembuat dengan >3 peluncuran dipenalti karena risiko serial dump.',
+    copilotRuleLiq: 'Ambang Likuiditas: Likuiditas >$1.000 WBNB mendapat bobot stabilitas tinggi.',
+    copilotRuleOrder: 'Radar Order Flow: Pemantauan rasio akumulasi pembeli vs tekanan penjual.',
+    copilotRuleSec: 'Pemindai Keamanan: Audit honeypot & pajak jual/beli instan via GoPlus BSC Security.',
+    copilotRulePair: 'Audit Pair Scam: Verifikasi otomatis token quote pasangan (WBNB, USDT, USDC) terhadap kontrak kanonikal resmi BSC guna mencegah penipuan likuiditas palsu.',
+    picksDesc: 'Radar token terkurasi oleh algoritma Agent BREW berdasarkan kedalaman likuiditas DEX, akumulasi pembeli, riwayat pengembang bersih, verifikasi kontrak pair resmi, dan volume transaksi berkelanjutan di BNB Chain.',
+    devClusterTitle: 'Kluster Dompet Developer',
+    extremeSerial: '🚨 Serial Ekstrem (≥5)',
+    repeatDev: '⚠️ Pengulang (3-4 kali)',
+    liquidPairs: '💧 Pool Likuiditas Aktif',
+    farmKing: '👑 Rekor Peluncur Terbanyak',
+    liveOnline: 'online',
+    totalVisitors: 'kunjungan',
+    hofTitle: 'Hall of Fame · Podium Juara',
+    hofSubtitle: 'Peringkat puncak on-chain dihitung secara real-time dari 2.160+ peluncuran BSC Brew',
+    hofCritVol: 'Volume 24 Jam',
+    hofCritChange: 'Top Kenaikan 24j',
+    hofCritMcap: 'Kapitalisasi Pasar',
+    hofRank1Badge: '👑 JUARA UTAMA · #1',
+    hofRank2Badge: '🥈 JUARA KEDUA · #2',
+    hofRank3Badge: '🥉 JUARA KETIGA · #3',
+    hofInspectBtn: 'Audit Mendalam',
+    hofTradeBtn: 'Trade DEX',
+    hofPrice: 'Harga',
+    hof24hChange: 'Perubahan 24j',
+    hofLiquidity: 'Likuiditas',
+    hofDev: 'Developer',
+    hofAgentScore: 'Skor AI',
+    copyFactorySuccess: 'Alamat BrewFactory berhasil disalin!',
+    syncSuccess: 'Database berhasil disinkronkan!',
+    syncing: 'Sinkronisasi...',
+    syncBtn: 'Sinkron Database',
+    copyBtn: 'Salin Factory',
+    pairAuditTitle: 'Audit Keamanan Pair & Token Pasangan',
+    pairAuditDesc: 'Memeriksa kontrak token quote (WBNB/USDT/USDC) terhadap alamat resmi BSC untuk mendeteksi penipuan token palsu.',
+    quoteAddressLabel: 'Alamat Kontrak Quote (WBNB/Pasangan)',
+    canonicalVerified: '✓ Kontrak Kanonikal Resmi BSC Terverifikasi',
+    fakeQuoteWarning: '🚨 TERDETEKSI TOKEN QUOTE PALSU (SCAM)!',
+    customQuoteWarning: '⚠️ Kontrak Token Quote Kustom Belum Terverifikasi',
+    quoteTaxLabel: 'Pajak Token Quote',
+    quoteHoneypotLabel: 'Status Honeypot Quote'
   },
   zh: {
     dbStatus: '⚡ Supabase 已连接',
@@ -237,6 +367,7 @@ export const I18N: Record<Language, TranslationDict> = {
     modalTitle: '代币深度分析与开发者情报',
     sec1Title: '📊 市场指标与订单流',
     sec2Title: '🤖 AI 策略研判与安全审计',
+    secPairTitle: '🛡️ 配对交易对与代币诈骗审计 (WBNB/Quote)',
     sec3Title: '🕵️ 开发者与前十持币者情报',
     sec4Title: '💰 利润模拟器 (动态收益率)',
     sec5Title: '📑 合约身份验证与区块数据',
@@ -249,13 +380,14 @@ export const I18N: Record<Language, TranslationDict> = {
     topVol: '⚡ 交易量榜首',
     highestScore: '🤖 最高评分',
     serialDevRisk: '🚨 连环发币风险',
-    copilotGreeting: '您好！我是 Agent BREW 战术智能终端。\n运行 100% 确定性算法，实时监控 brew.family (BNB Chain) 上的 2,160+ 代币发射。\n\n请点击下方快捷指令或输入代币符号 (如 "BREW")、合约地址 (0x...) 即可进行即时审计！',
+    copilotGreeting: '您好！我是 Agent BREW 战术智能终端。\n运行确定性算法，实时监控 brew.family (BNB Chain) 上的 2,160+ 代币发射。\n\n请点击下方快捷指令或输入代币符号 (如 "BREW")、合约地址 (0x...) 即可进行即时审计，包含交易对配对代币 (WBNB/USDT) 防伪审计！',
     copilotChip1: '前 3 高确信度精选',
     copilotChip2: '极高风险连环发币者 (>3代币)',
     copilotChip3: '单一开发者流动性代币',
     copilotChip4: '当前最高交易量代币',
     copilotChip5: '最新发布的 5 个代币',
-    copilotInputPh: '向 Agent BREW 提问 (如 "top picks", "安全代币", "跑路风险", "BREW")...',
+    copilotChipPairScam: '🛡️ 交易对防伪与 WBNB 假币审计',
+    copilotInputPh: '向 Agent BREW 提问 (如 "top picks", "安全代币", "交易对检查", "BREW")...',
     copilotSend: '发送',
     copilotTopPicksTitle: '💎 高确信度精选',
     copilotRulesTitle: '⚙️ 智能分析引擎规则',
@@ -263,7 +395,8 @@ export const I18N: Record<Language, TranslationDict> = {
     copilotRuleLiq: '流动性阈值：资金池大于 $1,000 WBNB 将获得极高的稳定性权重。',
     copilotRuleOrder: '订单流雷达：实时买方累积与卖方抛压比率监测。',
     copilotRuleSec: '安全扫描：通过 GoPlus BSC 安全审计即时检查蜜罐及买卖滑点税。',
-    picksDesc: '基于 DEX 深度流动性、买方累积压力、单一开发者信誉以及 BNB 链上持续 24 小时交易量，由 Agent BREW 算法严格筛选的高确信度代币雷达。',
+    copilotRulePair: '交易对防伪审计：自动对比配对资产合约 (WBNB, USDT, USDC) 是否为 BSC 官方规范合约，防止假币假流动性骗局。',
+    picksDesc: '基于 DEX 深度流动性、买方累积压力、单一开发者信誉、官方规范配对代币认证以及 BNB 链上持续 24 小时交易量，由 Agent BREW 算法严格筛选的高确信度代币雷达。',
     devClusterTitle: '开发者钱包聚类图谱',
     extremeSerial: '🚨 极高频连环发币者 (≥5)',
     repeatDev: '⚠️ 重复发币者 (3-4次)',
@@ -290,7 +423,15 @@ export const I18N: Record<Language, TranslationDict> = {
     syncSuccess: '数据库已成功同步！',
     syncing: '同步中...',
     syncBtn: '同步数据库',
-    copyBtn: '复制合约'
+    copyBtn: '复制合约',
+    pairAuditTitle: '配对代币与交易对安全审计',
+    pairAuditDesc: '自动核验配对代币 (WBNB/USDT/USDC) 是否为 BSC 官方正品合约，杜绝假币流动性骗局。',
+    quoteAddressLabel: '配对代币合约 (WBNB/Quote)',
+    canonicalVerified: '✓ 官方 BSC 规范合约认证通过',
+    fakeQuoteWarning: '🚨 警报：检测到伪造配对代币 (假 WBNB 骗局)！',
+    customQuoteWarning: '⚠️ 自定义未认证配对代币',
+    quoteTaxLabel: '配对代币滑点税',
+    quoteHoneypotLabel: '配对代币蜜罐检测'
   },
   ja: {
     dbStatus: '⚡ Supabase 接続中',
@@ -333,6 +474,7 @@ export const I18N: Record<Language, TranslationDict> = {
     modalTitle: 'トークン詳細分析 & 開発者インテル',
     sec1Title: '📊 市場指標 & オーダーフロー',
     sec2Title: '🤖 戦術的判定 & セキュリティ監査',
+    secPairTitle: '🛡️ ペアトークン & 偽装詐欺監査 (WBNB/Quote)',
     sec3Title: '🕵️ 開発者 & 大口保有者インテル',
     sec4Title: '💰 利益シミュレーター (動的ROI)',
     sec5Title: '📑 コントラクト検証 & ブロックデータ',
@@ -345,21 +487,23 @@ export const I18N: Record<Language, TranslationDict> = {
     topVol: '⚡ 取引高トップ',
     highestScore: '🤖 最高AIスコア',
     serialDevRisk: '🚨 連続発行者リスク',
-    copilotGreeting: 'こんにちは！Agent BREW 戦術ターミナルです。\n100% 決定論的アルゴリズムにより、brew.family (BNB Chain) 上の 2,160+ トークンをリアルタイム監査しています。\n\n下記のクイックプロンプトを選択するか、トークンシンボル (例: "BREW") やコントラクトアドレス (0x...) を入力して即時監査を開始してください！',
+    copilotGreeting: 'こんにちは！Agent BREW 戦術ターミナルです。\nbrew.family (BNB Chain) 上の 2,160+ トークンをリアルタイム監査しています。\n\n下記のクイックプロンプトを選択するか、トークンシンボル (例: "BREW") やコントラクトアドレス (0x...) を入力して即時監査を開始してください（ペアトークン WBNB 偽装詐欺チェック対応）！',
     copilotChip1: '高確信トップ3厳選銘柄',
     copilotChip2: '最高リスク連続発行者 (>3トークン)',
     copilotChip3: '単一開発者・高流動性ジェム',
     copilotChip4: '現在最高取引高銘柄',
     copilotChip5: '最新5トークンローンチ',
-    copilotInputPh: "Agent BREW に質問 (例: 'top picks', '安全トークン', 'ダンプリスク', 'BREW')...",
+    copilotChipPairScam: '🛡️ ペアトークン詐欺 (WBNB) 監査',
+    copilotInputPh: "Agent BREW に質問 (例: 'top picks', 'ペア詐欺チェック', 'BREW')...",
     copilotSend: '送信',
     copilotTopPicksTitle: '💎 高確信厳選ピック',
     copilotRulesTitle: '⚙️ AIルールエンジン',
     copilotRuleDev: '開発者フィルタリング: 3回以上ローンチした開発者は連続売り抜けリスクとして減点。',
-    copilotRuleLiq: '流動性しきい値: 流動性 $1,000 WBNB 超過で高い安定性加点。',
+    copilotRuleLiq: '流動性しきい値: 流动性 $1,000 WBNB 超過で高い安定性加点。',
     copilotRuleOrder: 'オーダーフローレーダー: 買い手蓄積と売り圧力比率をリアルタイム監視。',
     copilotRuleSec: 'セキュリティスキャナー: GoPlus BSC Securityによるハニーポットおよび売買税の即時監査。',
-    picksDesc: 'DEXの深い流動性、買い手の蓄積圧力、クリーンな単一開発者の実績、およびBNB Chain上の持続的な24時間取引高に基づいてAgent BREWアルゴリズムが厳選した高確信トークンレーダー。',
+    copilotRulePair: 'ペア詐欺監査: ペア相手となるQuoteトークン (WBNB, USDT, USDC) がBSC正規公式コントラクトであるかを自動照合し、偽装詐欺を防止。',
+    picksDesc: 'DEXの深い流動性、買い手の蓄積圧力、クリーンな単一開発者の実績、正規公式ペア検証、およびBNB Chain上の持続的な24時間取引高に基づいてAgent BREWアルゴリズムが厳選した高確信トークンレーダー。',
     devClusterTitle: '開発者ウォレットクラスタリング',
     extremeSerial: '🚨 超高頻度連続発行者 (≥5)',
     repeatDev: '⚠️ 複数回発行者 (3-4回)',
@@ -386,6 +530,14 @@ export const I18N: Record<Language, TranslationDict> = {
     syncSuccess: 'データベースの同期が完了しました！',
     syncing: '同期中...',
     syncBtn: 'データベース同期',
-    copyBtn: 'コントラクト複製'
+    copyBtn: 'コントラクト複製',
+    pairAuditTitle: 'ペアトークン & クォート偽装監査',
+    pairAuditDesc: 'ペア相手のクォートトークン (WBNB/USDT/USDC) をBSC正規コントラクトと照合し偽装詐欺を検知。',
+    quoteAddressLabel: 'ペアトークンアドレス (WBNB/Quote)',
+    canonicalVerified: '✓ BSC 正規公式コントラクト照合済み',
+    fakeQuoteWarning: '🚨 偽装クォートトークン詐欺を検知！',
+    customQuoteWarning: '⚠️ 未検証カスタムクォートコントラクト',
+    quoteTaxLabel: 'ペアトークン売買税',
+    quoteHoneypotLabel: 'ペアトークンハニーポット状況'
   }
 };

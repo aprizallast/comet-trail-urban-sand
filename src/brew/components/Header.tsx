@@ -2,7 +2,7 @@ import React from 'react';
 import { Language, VisitorStats } from '../types.ts';
 import { I18N } from '../i18n.ts';
 import { copyToClipboard } from '../utils/format.ts';
-import { Copy, RefreshCw, ExternalLink, Check, Moon, Sun } from 'lucide-react';
+import { Copy, RefreshCw, ExternalLink, Check, Moon, Sun, ShieldAlert } from 'lucide-react';
 import brewOfficialLogo from '../assets/images/brew_agent_logo_1789743336149.jpg';
 import { VisitorBadge } from './VisitorBadge.tsx';
 
@@ -15,6 +15,7 @@ interface HeaderProps {
   onSync: () => void;
   onShowToast: (msg: string) => void;
   visitorStats: VisitorStats;
+  onOpenTokenSniffer?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,7 +26,8 @@ export const Header: React.FC<HeaderProps> = ({
   isSyncing,
   onSync,
   onShowToast,
-  visitorStats
+  visitorStats,
+  onOpenTokenSniffer,
 }) => {
   const [copied, setCopied] = React.useState(false);
   const [theme, setTheme] = React.useState<'dark' | 'light'>('dark');
@@ -117,6 +119,16 @@ export const Header: React.FC<HeaderProps> = ({
         <button onClick={toggleTheme} className="btn h-10 w-10 justify-center px-0" aria-label="Toggle theme">
           {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
+        {onOpenTokenSniffer && (
+          <button
+            onClick={onOpenTokenSniffer}
+            className="btn border-emerald-500/40 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/30"
+            title="TokenSniffer Pair Scam & Smell Test Checker"
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline font-mono text-xs">TokenSniffer</span>
+          </button>
+        )}
         <button onClick={onSync} disabled={isSyncing} className="btn">
           <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
           <span className="hidden sm:inline">{isSyncing ? dict.syncing : dict.syncBtn}</span>

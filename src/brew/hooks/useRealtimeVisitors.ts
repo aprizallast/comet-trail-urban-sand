@@ -83,7 +83,9 @@ export function useRealtimeVisitors() {
             keepalive: true
           }).catch(() => {});
         }
-      } catch {}
+      } catch {
+        /* ignore */
+      }
     };
 
     window.addEventListener('visibilitychange', handleVisibilityChange);

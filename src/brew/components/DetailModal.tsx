@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Token, Language } from '../types.ts';
+import { Token, Language, PairAuditReport } from '../types.ts';
 import { I18N } from '../i18n.ts';
-import { formatUsd, formatPct, truncateAddr, copyToClipboard, formatTimeAgo, isRecentlyLaunched } from '../utils/format.ts';
+import { formatUsd, formatPct, truncateAddr, copyToClipboard } from '../utils/format.ts';
 import { TokenAvatar } from './TokenAvatar.tsx';
-import { X, Copy, ExternalLink, ShieldCheck, ShieldAlert, Sparkles, TrendingUp, Star, Clock, Calculator } from 'lucide-react';
+import { auditPairSecurity, CANONICAL_BSC_TOKENS } from '../utils/pairAudit.ts';
+import { X, Copy, ExternalLink, ShieldCheck, ShieldAlert, Sparkles, TrendingUp, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 interface DetailModalProps {
   token: Token | null;
@@ -27,41 +28,70 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   onSelectAnotherToken,
   allTokens,
   onShowToast,
-  watchlist = [],
-  onToggleWatchlist
+  watchlist: _watchlist = [],
+  onToggleWatchlist: _onToggleWatchlist
 }) => {
-  const dict = I18N[lang];
+  const dict = I18N[lang] || I18N.en;
   const [simCapital, setSimCapital] = useState<number>(50);
-  const [customTargetMcInput, setCustomTargetMcInput] = useState<string>('');
   const [liveSecurity, setLiveSecurity] = useState<any>(null);
+  const [quoteSecurity, setQuoteSecurity] = useState<any>(null);
   const [livePair, setLivePair] = useState<any>(null);
+  const [pairAudit, setPairAudit] = useState<PairAuditReport | null>(null);
   const [isLoadingLive, setIsLoadingLive] = useState(false);
+
+  const fetchLiveDetails = async () => {
+    if (!token) return;
+    setIsLoadingLive(true);
+    try {
+      const qAddr = token.quoteAddress || '';
+      const url = `/api/inspect?address=${encodeURIComponent(token.address)}${qAddr ? `&quoteAddress=${encodeURIComponent(qAddr)}` : ''}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.pair) setLivePair(data.pair);
+        if (data.security) setLiveSecurity(data.security);
+        if (data.quoteSecurity) setQuoteSecurity(data.quoteSecurity);
+        if (data.pairAudit) {
+          setPairAudit(data.pairAudit);
+        } else {
+          // Client-side fallback audit
+          const fallbackAudit = auditPairSecurity(
+            token.address,
+            token.symbol,
+            token.quoteAddress || data.pair?.quoteToken?.address || (token.quoteSymbol === 'WBNB' ? CANONICAL_BSC_TOKENS.wbnb.address : ''),
+            token.quoteSymbol || data.pair?.quoteToken?.symbol || 'WBNB',
+            data.pair?.quoteToken?.name || 'Wrapped BNB',
+            token.pool || data.pair?.pairAddress || '',
+            data.quoteSecurity
+          );
+          setPairAudit(fallbackAudit);
+        }
+      }
+    } catch (err) {
+      console.error('Live fetch error:', err);
+      // Fallback local pair audit
+      const fallbackAudit = auditPairSecurity(
+        token.address,
+        token.symbol,
+        token.quoteAddress || (token.quoteSymbol === 'WBNB' ? CANONICAL_BSC_TOKENS.wbnb.address : ''),
+        token.quoteSymbol || 'WBNB',
+        'Wrapped BNB',
+        token.pool || '',
+        null
+      );
+      setPairAudit(fallbackAudit);
+    } finally {
+      setIsLoadingLive(false);
+    }
+  };
 
   useEffect(() => {
     if (!token || !isOpen) return;
-
-    let active = true;
-    setIsLoadingLive(true);
-
-    // Fetch live DexScreener + GoPlus BSC security audit
-    const fetchLiveDetails = async () => {
-      try {
-        const res = await fetch(`/api/inspect?address=${encodeURIComponent(token.address)}`);
-        if (!active) return;
-        if (res.ok) {
-          const data = await res.json();
-          if (data.pair) setLivePair(data.pair);
-          if (data.security) setLiveSecurity(data.security);
-        }
-      } catch (err) {
-        console.error('Live fetch error:', err);
-      } finally {
-        if (active) setIsLoadingLive(false);
-      }
-    };
-
+    setLiveSecurity(null);
+    setQuoteSecurity(null);
+    setLivePair(null);
+    setPairAudit(null);
     fetchLiveDetails();
-    return () => { active = false; };
   }, [token?.address, isOpen]);
 
   if (!isOpen || !token) return null;
@@ -89,7 +119,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
     t.creator && t.creator.toLowerCase() === devAddr && t.address.toLowerCase() !== token.address.toLowerCase()
   );
 
-  // Security parsing
+  // Security parsing - Base Token
   const isHoneypot = liveSecurity?.is_honeypot === '1';
   const cannotSellAll = liveSecurity?.cannot_sell_all === '1';
   const buyTax = parseFloat(liveSecurity?.buy_tax || '0') * 100;
@@ -97,6 +127,15 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   const devHoldingPct = liveSecurity?.creator_percent != null ? parseFloat(liveSecurity.creator_percent) * 100 : 0;
   const top10Percent = liveSecurity?.top10_holder_percent != null ? parseFloat(liveSecurity.top10_holder_percent) * 100 : 0;
   const holders = Array.isArray(liveSecurity?.holders) ? liveSecurity.holders.slice(0, 10) : [];
+
+  // Quote Token Security & Canonical status
+  const currentQuoteSymbol = (pairAudit?.quoteSymbol || token.quoteSymbol || 'WBNB').toUpperCase();
+  const currentQuoteAddress = pairAudit?.quoteAddress || token.quoteAddress || (currentQuoteSymbol === 'WBNB' ? CANONICAL_BSC_TOKENS.wbnb.address : '');
+  const isCanonicalQuote = pairAudit ? pairAudit.isCanonicalQuote : currentQuoteAddress.toLowerCase() === CANONICAL_BSC_TOKENS.wbnb.address.toLowerCase();
+  const isFakeQuoteScam = pairAudit?.isFakeQuoteScam ?? false;
+  const quoteIsHoneypot = quoteSecurity?.is_honeypot === '1' || pairAudit?.isHoneypot;
+  const quoteBuyTax = quoteSecurity?.buy_tax != null ? parseFloat(quoteSecurity.buy_tax) * 100 : 0;
+  const quoteSellTax = quoteSecurity?.sell_tax != null ? parseFloat(quoteSecurity.sell_tax) * 100 : 0;
 
   // Dynamic Simulator targets based on current MC
   const baseMc = marketCap || 10000;
@@ -144,8 +183,13 @@ export const DetailModal: React.FC<DetailModalProps> = ({
             <div>
               <div className="font-extrabold text-[var(--color-ink)] text-base flex items-center gap-2">
                 <span className="font-mono">{token.name} ({token.symbol})</span>
-                <span className="text-[10px] font-mono text-[var(--color-muted)] bg-[var(--color-field)] border border-[var(--color-line)] px-1.5 py-0.5 rounded">
-                  /{token.quoteSymbol || 'WBNB'}
+                <span className="text-[10px] font-mono text-[var(--color-muted)] bg-[var(--color-field)] border border-[var(--color-line)] px-1.5 py-0.5 rounded flex items-center gap-1">
+                  <span>/{currentQuoteSymbol}</span>
+                  {isCanonicalQuote ? (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="Canonical Pair Verified" />
+                  ) : isFakeQuoteScam ? (
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" title="Fake Quote Warning" />
+                  ) : null}
                 </span>
               </div>
             </div>
@@ -223,10 +267,10 @@ export const DetailModal: React.FC<DetailModalProps> = ({
 
           <div className="text-xs space-y-1.5 text-[var(--color-muted)] pt-1">
             <div className="flex items-center justify-between py-1 border-b border-[var(--color-line)]">
-              <span className="text-[var(--color-muted)]">Honeypot &amp; Tax Audit (GoPlus)</span>
+              <span className="text-[var(--color-muted)]">Token Honeypot &amp; Tax Audit (GoPlus)</span>
               <span>
                 {isLoadingLive ? (
-                  <span className="text-[var(--color-copper)] animate-pulse font-mono">Verifying...</span>
+                  <span className="text-[var(--color-copper)] animate-pulse font-mono">Auditing...</span>
                 ) : isHoneypot ? (
                   <span className="text-[var(--color-down)] font-bold">🚨 HONEYPOT DETECTED!</span>
                 ) : cannotSellAll ? (
@@ -260,6 +304,144 @@ export const DetailModal: React.FC<DetailModalProps> = ({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Section: Pair Token & Quote Scam Audit (NEW / REQUESTED FEATURE) */}
+        <div className={`rounded-xl p-3.5 space-y-2.5 border shadow-sm ${
+          isFakeQuoteScam
+            ? 'bg-rose-950/40 border-rose-500/80'
+            : isCanonicalQuote
+            ? 'bg-[var(--color-field)] border-emerald-600/40'
+            : 'bg-[var(--color-field)] border-[var(--color-line)]'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-bold font-mono tracking-wider">
+              {isFakeQuoteScam ? (
+                <ShieldAlert className="w-4 h-4 text-rose-400 animate-pulse" />
+              ) : isCanonicalQuote ? (
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+              )}
+              <span className={isFakeQuoteScam ? 'text-rose-400' : isCanonicalQuote ? 'text-emerald-400' : 'text-amber-400'}>
+                {dict.secPairTitle}
+              </span>
+            </div>
+            <button
+              onClick={fetchLiveDetails}
+              disabled={isLoadingLive}
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono font-semibold rounded bg-[var(--color-surface)] border border-[var(--color-line)] text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors cursor-pointer"
+            >
+              <RefreshCw className={`w-3 h-3 ${isLoadingLive ? 'animate-spin text-amber-400' : ''}`} />
+              <span>{isLoadingLive ? 'Auditing...' : 'Live Audit'}</span>
+            </button>
+          </div>
+
+          {/* Pair Status Banner */}
+          <div className={`p-2.5 rounded-lg border text-xs leading-relaxed font-mono ${
+            isFakeQuoteScam
+              ? 'bg-rose-950/80 border-rose-500 text-rose-200'
+              : isCanonicalQuote
+              ? 'bg-emerald-950/40 border-emerald-600/30 text-emerald-200'
+              : 'bg-amber-950/40 border-amber-600/30 text-amber-200'
+          }`}>
+            <div className="flex items-center gap-1.5 font-bold mb-1">
+              {isFakeQuoteScam ? (
+                <>
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span className="text-rose-300 font-extrabold">{dict.fakeQuoteWarning}</span>
+                </>
+              ) : isCanonicalQuote ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-emerald-300 font-extrabold">{dict.canonicalVerified}</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="text-amber-300 font-extrabold">{dict.customQuoteWarning}</span>
+                </>
+              )}
+            </div>
+            <p className="text-[11px] text-[var(--color-ink)]">
+              {pairAudit?.verdictDescription || (
+                isCanonicalQuote
+                  ? `Pair is backed by official BSC Canonical ${currentQuoteSymbol} contract (${truncateAddr(currentQuoteAddress)}). Liquidity pool routing is genuine.`
+                  : `Trading pair against ${currentQuoteSymbol}. Verify quote token address on BscScan.`
+              )}
+            </p>
+          </div>
+
+          {/* Pair & Quote Contract Specs Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 font-mono">
+            <div className="bg-[var(--color-surface)] border border-[var(--color-line)] rounded-lg p-2.5 space-y-1">
+              <span className="text-[10px] text-[var(--color-muted)] uppercase block">Paired Asset (Quote Token)</span>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-[var(--color-ink)]">{currentQuoteSymbol} ({pairAudit?.quoteName || 'Wrapped BNB'})</span>
+                {isCanonicalQuote ? (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-600/30 font-bold">CANONICAL</span>
+                ) : isFakeQuoteScam ? (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-950 text-rose-400 border border-rose-600/40 font-bold">FAKE SCAM</span>
+                ) : (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-950 text-amber-400 border border-amber-600/30">CUSTOM</span>
+                )}
+              </div>
+              <div className="flex items-center justify-between pt-1 text-[11px]">
+                <span className="text-[var(--color-muted)]">{dict.quoteAddressLabel}:</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleCopy(currentQuoteAddress, 'Quote Contract Address')}
+                    className="text-[var(--color-copper)] hover:underline inline-flex items-center gap-0.5 cursor-pointer font-bold"
+                  >
+                    <span>{truncateAddr(currentQuoteAddress)}</span>
+                    <Copy className="w-3 h-3" />
+                  </button>
+                  <a
+                    href={`https://bscscan.com/token/${currentQuoteAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+                    title="View Quote Contract on BscScan"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[var(--color-surface)] border border-[var(--color-line)] rounded-lg p-2.5 space-y-1">
+              <span className="text-[10px] text-[var(--color-muted)] uppercase block">Quote Contract Security (GoPlus)</span>
+              <div className="flex items-center justify-between">
+                <span className="text-[var(--color-muted)]">{dict.quoteHoneypotLabel}:</span>
+                <span className="font-bold">
+                  {quoteIsHoneypot ? (
+                    <span className="text-rose-400">🚨 HONEYPOT</span>
+                  ) : (
+                    <span className="text-emerald-400">✓ Clean / Tradable</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center justify-between pt-1 text-[11px]">
+                <span className="text-[var(--color-muted)]">{dict.quoteTaxLabel}:</span>
+                <span className="font-bold text-[var(--color-ink)]">
+                  {quoteBuyTax > 0 || quoteSellTax > 0
+                    ? `${quoteBuyTax.toFixed(0)}% Buy / ${quoteSellTax.toFixed(0)}% Sell`
+                    : '0% Buy / 0% Sell (Standard)'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tactical Notes / Warnings */}
+          {pairAudit && pairAudit.tacticalNotes && pairAudit.tacticalNotes.length > 0 && (
+            <div className="space-y-1 pt-1">
+              {pairAudit.tacticalNotes.map((note, nIdx) => (
+                <div key={nIdx} className="text-[11px] font-mono text-[var(--color-muted)] flex items-center gap-1.5">
+                  <span>{note}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Section 3: Developer & Top Holders Intel */}
@@ -405,7 +587,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
 
           <div className="text-xs space-y-1.5 text-[var(--color-muted)]">
             <div className="flex items-center justify-between py-1 border-b border-[var(--color-line)]">
-              <span className="text-[var(--color-muted)]">Token Contract</span>
+              <span className="text-[var(--color-muted)]">Token Contract (Base)</span>
               <button
                 onClick={() => handleCopy(token.address, 'Token Address')}
                 className="font-mono text-[var(--color-ink)] hover:text-[var(--color-copper)] inline-flex items-center gap-1 cursor-pointer"
@@ -415,9 +597,20 @@ export const DetailModal: React.FC<DetailModalProps> = ({
               </button>
             </div>
 
+            <div className="flex items-center justify-between py-1 border-b border-[var(--color-line)]">
+              <span className="text-[var(--color-muted)]">Paired Quote Contract</span>
+              <button
+                onClick={() => handleCopy(currentQuoteAddress, 'Quote Address')}
+                className="font-mono text-[var(--color-copper)] hover:underline inline-flex items-center gap-1 cursor-pointer font-bold"
+              >
+                <span>{truncateAddr(currentQuoteAddress)} ({currentQuoteSymbol})</span>
+                <Copy className="w-3 h-3" />
+              </button>
+            </div>
+
             {token.pool && (
               <div className="flex items-center justify-between py-1 border-b border-[var(--color-line)]">
-                <span className="text-[var(--color-muted)]">Pair / Pool Address</span>
+                <span className="text-[var(--color-muted)]">Pair / Pool Contract</span>
                 <button
                   onClick={() => handleCopy(token.pool, 'Pool Address')}
                   className="font-mono text-[var(--color-ink)] hover:text-[var(--color-copper)] inline-flex items-center gap-1 cursor-pointer"

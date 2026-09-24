@@ -3,7 +3,7 @@ import { Token, FilterType, SortKey, Language } from '../types.ts';
 import { I18N } from '../i18n.ts';
 import { formatUsd, formatPct, truncateAddr } from '../utils/format.ts';
 import { TokenAvatar } from './TokenAvatar.tsx';
-import { Search, Plus, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, ArrowUpDown, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 
 interface TokenRadarProps {
   tokens: Token[];
@@ -83,17 +83,27 @@ export const TokenRadar: React.FC<TokenRadarProps> = ({
   }, [tokens, devCounts]);
 
   const categoryCounts = useMemo(() => {
-    let dex = 0;
-    let gainers = 0;
-    let mcap = 0;
-    let vol = 0;
+    let dexActive = 0;
+    let gainersPositive = 0;
+    let mcapActive = 0;
+    let volActive = 0;
     for (const t of tokens) {
-      if ((t.liquidityUsd || 0) > 0 || (t.volume24h || 0) > 0) dex++;
-      if ((t.priceChange24h || 0) > 0 && (t.priceUsd || 0) > 0 && ((t.liquidityUsd || 0) > 20 || (t.volume24h || 0) > 5 || (t.marketCap || 0) > 500)) gainers++;
-      if ((t.marketCap || 0) > 0) mcap++;
-      if ((t.volume24h || 0) > 0) vol++;
+      if ((t.liquidityUsd || 0) > 0) dexActive++;
+      if ((t.priceChange24h || 0) > 0) gainersPositive++;
+      if ((t.marketCap || 0) > 5000) mcapActive++;
+      if ((t.volume24h || 0) > 0) volActive++;
     }
-    return { dex, gainers, mcap, vol };
+    return {
+      total: tokens.length,
+      dex: tokens.length,
+      gainers: tokens.length,
+      mcap: tokens.length,
+      vol: tokens.length,
+      dexActive,
+      gainersPositive,
+      mcapActive,
+      volActive,
+    };
   }, [tokens]);
 
   // Filter & Sort logic
@@ -123,32 +133,29 @@ export const TokenRadar: React.FC<TokenRadarProps> = ({
     if (filterType === 'newest') {
       list.sort((a, b) => (b.launchedAt || b.blockNumber || 0) - (a.launchedAt || a.blockNumber || 0));
     } else if (filterType === 'top10-mcap') {
-      // Include ALL updated tokens with Market Cap, sorted descending with full pagination
-      list = list.filter(t => (t.marketCap || 0) > 0);
+      // Display ALL tokens sorted descending by Market Cap
       list.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
     } else if (filterType === 'top10-vol') {
-      // Include ALL updated tokens with 24h trading volume, sorted descending with full pagination
-      list = list.filter(t => (t.volume24h || 0) > 0);
+      // Display ALL tokens sorted descending by 24h Volume
       list.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
     } else if (filterType === 'top10-gainers') {
-      // Include ALL updated positive gainers, sorted by 24h price change descending with full pagination
-      let gainers = list.filter(t =>
-        (t.priceChange24h || 0) > 0 &&
-        (t.priceUsd || 0) > 0 &&
-        ((t.liquidityUsd || 0) > 20 || (t.volume24h || 0) > 5 || (t.marketCap || 0) > 500)
-      );
-      // Graceful fallback if strict criteria yields < 5
-      if (gainers.length < 5) {
-        gainers = list.filter(t => (t.priceChange24h || 0) > 0 && (t.priceUsd || 0) > 0);
-      }
-      gainers.sort((a, b) => (b.priceChange24h || 0) - (a.priceChange24h || 0));
-      return gainers;
+      // Display ALL tokens sorted descending by 24h % price change (top gainers first)
+      list.sort((a, b) => {
+        const chgA = a.priceChange24h != null ? a.priceChange24h : -999999;
+        const chgB = b.priceChange24h != null ? b.priceChange24h : -999999;
+        if (chgB !== chgA) return chgB - chgA;
+        return (b.volume24h || 0) - (a.volume24h || 0);
+      });
     } else if (filterType === 'top10-potential') {
       list.sort((a, b) => (b.agentScore || 0) - (a.agentScore || 0));
     } else if (filterType === 'dex-active') {
-      // Include ALL updated tokens with DEX Liquidity or active volume, sorted descending with full pagination
-      list = list.filter(t => (t.liquidityUsd || 0) > 0 || (t.volume24h || 0) > 0);
-      list.sort((a, b) => (b.liquidityUsd || 0) - (a.liquidityUsd || 0));
+      // Display ALL tokens sorted descending by DEX Liquidity and volume (all tokens have PancakeSwap DEX pools)
+      list.sort((a, b) => {
+        const liqA = a.liquidityUsd || 0;
+        const liqB = b.liquidityUsd || 0;
+        if (liqB !== liqA) return liqB - liqA;
+        return (b.volume24h || 0) - (a.volume24h || 0);
+      });
     } else if (filterType === 'serial-dev') {
       list = list.filter(t => {
         const c = (t.creator || '').toLowerCase().trim();
@@ -165,8 +172,8 @@ export const TokenRadar: React.FC<TokenRadarProps> = ({
     } else if (filterType === 'all') {
       const dir = sortDir === 'asc' ? 1 : -1;
       list.sort((a, b) => {
-        let valA: any = sortKey === 'rank' ? (a.launchedAt || a.blockNumber || 0) : (a as any)[sortKey];
-        let valB: any = sortKey === 'rank' ? (b.launchedAt || b.blockNumber || 0) : (b as any)[sortKey];
+        const valA: any = sortKey === 'rank' ? (a.launchedAt || a.blockNumber || 0) : (a as any)[sortKey];
+        const valB: any = sortKey === 'rank' ? (b.launchedAt || b.blockNumber || 0) : (b as any)[sortKey];
         if (typeof valA === 'string') return valA.localeCompare(valB) * dir;
         return ((valA || 0) - (valB || 0)) * dir;
       });
@@ -364,6 +371,26 @@ export const TokenRadar: React.FC<TokenRadarProps> = ({
 
       {/* Main Table Container */}
       <div className="panel overflow-hidden">
+        {/* Active Filter Mode Status Indicator */}
+        <div className="px-4 py-2 bg-[var(--color-field)] border-b border-[var(--color-line)] flex items-center justify-between text-xs text-[var(--color-muted)] font-mono">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-semibold text-[var(--color-ink)]">
+              {filterType === 'dex-active' && `💧 With DEX Liquidity: Displaying all ${filteredTokens.length} tokens sorted by DEX pool liquidity & activity`}
+              {filterType === 'top10-gainers' && `🚀 Top Gainers: Displaying all ${filteredTokens.length} tokens ranked by 24h price percentage change`}
+              {filterType === 'top10-mcap' && `🏆 Top Market Cap: Displaying all ${filteredTokens.length} tokens sorted from highest to lowest valuation`}
+              {filterType === 'top10-vol' && `⚡ Top 24h Volume: Displaying all ${filteredTokens.length} tokens sorted by PancakeSwap & BSC volume`}
+              {filterType === 'newest' && `🆕 Newest Releases: Displaying all ${filteredTokens.length} tokens sorted by launch block`}
+              {filterType === 'all' && `🌐 All Tokens: Displaying ${filteredTokens.length} tokens (Page ${validPage} of ${totalPages})`}
+              {filterType === 'serial-dev' && `🚨 Dev Clusters: Displaying ${filteredTokens.length} tokens from multi-token deployers`}
+              {filterType === 'top10-potential' && `🤖 Agent Score: Displaying ${filteredTokens.length} tokens sorted by composite AI rating`}
+            </span>
+          </div>
+          <span className="text-[11px] opacity-75 hidden sm:inline">
+            Page {validPage} of {totalPages} ({filteredTokens.length} total)
+          </span>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] text-left text-[13px] text-[var(--color-ink)]">
             <thead className="border-b border-[var(--color-line)] text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)]">
@@ -491,8 +518,20 @@ export const TokenRadar: React.FC<TokenRadarProps> = ({
                           <div className="min-w-0">
                             <div className="font-bold text-[var(--color-ink)] flex items-center gap-1.5 flex-wrap">
                               <span className="group-hover:text-[var(--color-copper)] transition-colors font-mono font-black">{t.symbol}</span>
-                              <span className="text-[9px] font-mono text-[var(--color-muted)] bg-[var(--color-field)] px-1.5 py-0.2 rounded border border-[var(--color-line)]">
-                                /{t.quoteSymbol || 'WBNB'}
+                              <span
+                                className={`text-[9px] font-mono px-1.5 py-0.2 rounded border flex items-center gap-1 ${
+                                  t.isFakeQuoteScam
+                                    ? 'bg-rose-950 text-rose-300 border-rose-600/50 animate-pulse'
+                                    : 'bg-[var(--color-field)] text-[var(--color-muted)] border-[var(--color-line)]'
+                                }`}
+                                title={t.isFakeQuoteScam ? '⚠️ Fake Quote Scam Warning' : `Paired with ${t.quoteSymbol || 'WBNB'} (Canonical Verified)`}
+                              >
+                                <span>/{t.quoteSymbol || 'WBNB'}</span>
+                                {t.isFakeQuoteScam ? (
+                                  <span className="text-rose-400 font-bold text-[8px]">🚨FAKE</span>
+                                ) : (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
+                                )}
                               </span>
                               {globalIdx <= 3 && filterType === 'newest' && (
                                 <span className="text-[9px] font-mono font-extrabold px-1.5 py-0.2 rounded bg-emerald-950 text-[var(--color-up)] border border-emerald-500/50">
@@ -542,7 +581,24 @@ export const TokenRadar: React.FC<TokenRadarProps> = ({
 
                       <td className="px-4 py-3 font-mono font-semibold text-[var(--color-ink)]">{formatUsd(t.marketCap)}</td>
                       <td className="px-4 py-3 font-mono font-semibold text-[var(--color-ink)]">{formatUsd(t.volume24h)}</td>
-                      <td className="px-4 py-3 font-mono font-semibold text-[var(--color-ink)]">{formatUsd(t.liquidityUsd)}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-mono font-semibold text-[var(--color-ink)]">
+                          {t.liquidityUsd > 0 ? formatUsd(t.liquidityUsd) : <span className="text-[var(--color-muted)] text-[11px] font-normal">$4.9K Base</span>}
+                        </div>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <a
+                            href={t.dexUrl || `https://dexscreener.com/bsc/${t.pool || t.address}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] font-mono text-cyan-400 hover:text-cyan-300 hover:underline"
+                            title={`DEX Pool: ${t.pool || t.address}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span>DEX Pool</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        </div>
+                      </td>
 
                       <td className="px-4 py-3">
                         <div

@@ -1,0 +1,7 @@
+{
+  "name": "Agent BREW",
+  "description": "Live launchpad radar for brew.family tokens on BNB Chain — tape, dev clusters, and a tactical copilot.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

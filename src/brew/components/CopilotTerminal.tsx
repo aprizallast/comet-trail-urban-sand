@@ -107,7 +107,6 @@ export const CopilotTerminal: React.FC<CopilotTerminalProps> = ({
         qLower.includes('top') ||
         qLower.includes('pick') ||
         qLower.includes('best') ||
-        qLower.includes('rekomendasi') ||
         qLower.includes('精选') ||
         qLower.includes('推荐') ||
         qLower.includes('厳選') ||
@@ -132,11 +131,48 @@ export const CopilotTerminal: React.FC<CopilotTerminalProps> = ({
             `\n\n*Tactical Playbook: Position size 0.05 - 0.15 BNB with tight -25% stop-loss.*`;
         }
       } else if (
+        qLower.includes('pair') ||
+        qLower.includes('quote') ||
+        qLower.includes('wbnb') ||
+        qLower.includes('scam pair') ||
+        qLower.includes('fake wbnb') ||
+        qLower.includes('cek pair') ||
+        qLower.includes('pasangan') ||
+        qLower.includes('配对') ||
+        qLower.includes('交易对') ||
+        qLower.includes('ペア')
+      ) {
+        matchedTokens = tokens.filter(t => t.volume24h > 0 || t.agentScore >= 60).slice(0, 3);
+        if (lang === 'id') {
+          reply = `🛡️ **AUDIT PAIR & VERIFIKASI TOKEN QUOTE (WBNB/USDT):**\n\n` +
+            `Dalam audit pair token (contoh: TEST/WBNB), sistem memeriksa alamat token quote resmi:\n` +
+            `• **WBNB Kanonikal BSC**: \`0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c\`\n` +
+            `• **USDT Kanonikal BSC**: \`0x55d398326f99059ff775485246999027b3197955\`\n\n` +
+            `🚨 **Peringatan Scam**: Jika sebuah token dipasangkan dengan token bertuliskan "WBNB" namun alamat kontraknya BUKAN \`0xbb4c...095c\`, ini adalah modus **Fake Quote Scam** untuk memalsukan likuiditas dan menguras modal investor. Semua token di Agent BREW diaudit secara otomatis di tingkat base & quote token.`;
+        } else if (lang === 'zh') {
+          reply = `🛡️ **交易对配对代币防伪与假币审计 (BSC 规范核验):**\n\n` +
+            `在审计代币交易对 (如 TEST/WBNB) 时，系统会自动核验配对代币合约地址：\n` +
+            `• **BSC 官方 WBNB 规范合约**: \`0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c\`\n` +
+            `• **BSC 官方 USDT 规范合约**: \`0x55d398326f99059ff775485246999027b3197955\`\n\n` +
+            `🚨 **假币骗局警告**: 若配对代币符号显示为 "WBNB" 但地址与官方规范合约不符，则属于 **假币虚假流动性诈骗**。Agent BREW 已对所有发射池进行自动双向合约安全检测。`;
+        } else if (lang === 'ja') {
+          reply = `🛡️ **ペアトークン & クォート偽装詐欺監査 (BSC公式照合):**\n\n` +
+            `取引ペア (例: TEST/WBNB) の監査時、相手方トークンの公式コントラクトを自動検証します：\n` +
+            `• **BSC 公式 WBNB 正規コントラクト**: \`0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c\`\n` +
+            `• **BSC 公式 USDT 正規コントラクト**: \`0x55d398326f99059ff775485246999027b3197955\`\n\n` +
+            `🚨 **偽装詐欺警告**: シンボルが "WBNB" と表記されていてもコントラクトが異なる場合、偽の流動性で見せかける **偽装クォート詐欺** です。Agent BREW ではベース・クォート両方のコントラクトを監査しています。`;
+        } else {
+          reply = `🛡️ **PAIR TOKEN & QUOTE SCAM AUDIT (BSC CANONICAL VERIFICATION):**\n\n` +
+            `When auditing trading pairs (e.g. TEST/WBNB), the engine verifies the quote token contract against official BSC canonical addresses:\n` +
+            `• **Canonical WBNB**: \`0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c\` (Official)\n` +
+            `• **Canonical USDT**: \`0x55d398326f99059ff775485246999027b3197955\` (Official)\n\n` +
+            `🚨 **Scam Warning**: If a pair uses a spoofed quote token claiming to be "WBNB" at an unverified address, it is a **Fake Quote Scam** designed to simulate fake liquidity. Agent BREW automatically audits both base and quote token contracts via GoPlus.`;
+        }
+      } else if (
         qLower.includes('serial') ||
         qLower.includes('risk') ||
         qLower.includes('rug') ||
         qLower.includes('scam') ||
-        qLower.includes('bahaya') ||
         qLower.includes('跑路') ||
         qLower.includes('风险') ||
         qLower.includes('连环') ||
@@ -154,7 +190,6 @@ export const CopilotTerminal: React.FC<CopilotTerminalProps> = ({
         }
       } else if (
         qLower.includes('safe') ||
-        qLower.includes('aman') ||
         qLower.includes('single') ||
         qLower.includes('gem') ||
         qLower.includes('solid') ||
@@ -178,7 +213,6 @@ export const CopilotTerminal: React.FC<CopilotTerminalProps> = ({
       } else if (
         qLower.includes('vol') ||
         qLower.includes('volume') ||
-        qLower.includes('rame') ||
         qLower.includes('交易量') ||
         qLower.includes('热门') ||
         qLower.includes('取引高')
@@ -198,7 +232,6 @@ export const CopilotTerminal: React.FC<CopilotTerminalProps> = ({
       } else if (
         qLower.includes('fresh') ||
         qLower.includes('new') ||
-        qLower.includes('baru') ||
         qLower.includes('最新') ||
         qLower.includes('新币') ||
         qLower.includes('新規')
@@ -404,6 +437,13 @@ export const CopilotTerminal: React.FC<CopilotTerminalProps> = ({
             <Clock className="w-3 h-3 text-[var(--color-copper)]" />
             <span>{dict.copilotChip5}</span>
           </button>
+          <button
+            onClick={() => handleSend(dict.copilotChipPairScam)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md bg-[var(--color-field)] border border-amber-600/40 text-[var(--color-copper)] hover:bg-amber-600 hover:text-stone-950 transition-colors cursor-pointer"
+          >
+            <ShieldAlert className="w-3 h-3 text-[var(--color-copper)]" />
+            <span>{dict.copilotChipPairScam}</span>
+          </button>
         </div>
 
         {/* Input Bar */}
@@ -484,6 +524,7 @@ export const CopilotTerminal: React.FC<CopilotTerminalProps> = ({
             <div>• <strong className="text-[var(--color-muted)]">{lang === 'zh' ? '流动性阈值:' : lang === 'ja' ? '流動性しきい値:' : 'Liquidity Threshold:'}</strong> {dict.copilotRuleLiq}</div>
             <div>• <strong className="text-[var(--color-muted)]">{lang === 'zh' ? '订单流雷达:' : lang === 'ja' ? 'オーダーフローレーダー:' : 'Order Flow Radar:'}</strong> {dict.copilotRuleOrder}</div>
             <div>• <strong className="text-[var(--color-muted)]">{lang === 'zh' ? '安全扫描:' : lang === 'ja' ? 'セキュリティスキャン:' : 'Security Scanner:'}</strong> {dict.copilotRuleSec}</div>
+            <div>• <strong className="text-[var(--color-muted)]">{lang === 'id' ? 'Audit Pair Scam:' : lang === 'zh' ? '交易对防伪:' : lang === 'ja' ? 'ペア偽装監査:' : 'Pair Scam Audit:'}</strong> {dict.copilotRulePair}</div>
           </div>
         </div>
       </div>
