@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Agent BREW",
+      "hasCanvas": false,
+      "bodyTextLen": 4625,
+      "bodyTextHash": "fe6e667e929b626c423176b76653168241466cba72ea26fc8c77667ce5cf4cb7",
+      "bodyTextPrefix": "TAPE SEVEN7️⃣ $0.00000502 0.00% bUSD $0.00000493 0.00% BSTONKEX ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Agent BREW",
+      "hasCanvas": false,
+      "bodyTextLen": 4595,
+      "bodyTextHash": "e0bfc63b3c35faaf9fe80b6814b823e977e26a9859ce3e0d9827a6e02824778a",
+      "bodyTextPrefix": "TAPE SEVEN7️⃣ $0.00000502 0.00% bUSD $0.00000493 0.00% BSTONKEX ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}
